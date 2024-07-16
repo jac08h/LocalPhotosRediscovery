@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photos from Previous Years</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+            height: 100%;
+            overflow: hidden;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .photo-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .photo-frame {
+            width: 90%;
+            height: 80%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background-color: #fff;
+        }
+        .fullscreen .photo-frame {
+            width: 100%;
+            height: 100%;
+            box-shadow: none;
+        }
+        img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            transition: opacity 0.3s ease;
+        }
+        .nav-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            padding: 1rem;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: background-color 0.3s ease;
+        }
+        .nav-button:hover {
+            background-color: rgba(0,0,0,0.7);
+        }
+        .nav-button:disabled {
+            background-color: rgba(0,0,0,0.2);
+            cursor: not-allowed;
+        }
+        #prev-button { left: 1rem; }
+        #next-button { right: 1rem; }
+        #photo-counter {
+            position: absolute;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0,0,0,0.5);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+        }
+        .fullscreen-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            padding: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+        .fullscreen-button:hover {
+            background-color: rgba(0,0,0,0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            {% if years_delta != 0 %}
+                <h1>On this day {{ years_delta }} year{% if years_delta != 1 %}s{% endif %} ago</h1>
+            {% else %}
+                <h1>No photos found for this day in previous years.</h1>
+            {% endif %}
+        </header>
+        {% if photos %}
+            <div class="photo-container" id="photo-container">
+                <div class="photo-frame" id="photo-frame">
+                    <img id="current-photo" src="{{ url_for('static', filename='photos/' + photos[0]) }}" alt="Photo from a previous year">
+                </div>
+                <button id="prev-button" class="nav-button" onclick="changePhoto(-1)">&lt;</button>
+                <button id="next-button" class="nav-button" onclick="changePhoto(1)">&gt;</button>
+                <div id="photo-counter">Photo 1 of {{ total }}</div>
+                <button id="fullscreen-button" class="fullscreen-button" onclick="toggleFullscreen()">⤢</button>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const photos = {{ photos|tojson|safe }};
+        let currentIndex = 0;
+
+        function preloadImage(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = url;
+            });
+        }
+
+        async function changePhoto(direction) {
+            currentIndex += direction;
+            if (currentIndex < 0) currentIndex = photos.length - 1;
+            if (currentIndex >= photos.length) currentIndex = 0;
+
+            const img = document.getElementById('current-photo');
+            const newSrc = `/static/photos/${photos[currentIndex]}`;
+
+            try {
+                const loadedImg = await preloadImage(newSrc);
+                img.style.opacity = 0;
+                setTimeout(() => {
+                    img.src = newSrc;
+                    img.style.opacity = 1;
+                }, 300);
+            } catch (error) {
+                console.error('Error loading image:', error);
+            }
+
+            document.getElementById('photo-counter').textContent = `Photo ${currentIndex + 1} of ${photos.length}`;
+
+            document.getElementById('prev-button').disabled = photos.length <= 1;
+            document.getElementById('next-button').disabled = photos.length <= 1;
+        }
+
+        function toggleFullscreen() {
+            const container = document.getElementById('photo-container');
+            if (container.classList.contains('fullscreen')) {
+                container.classList.remove('fullscreen');
+                document.exitFullscreen();
+            } else {
+                container.classList.add('fullscreen');
+                container.requestFullscreen();
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft') changePhoto(-1);
+            if (e.key === 'ArrowRight') changePhoto(1);
+            if (e.key === 'f') toggleFullscreen();
+        });
+
+        // Initialize
+        changePhoto(0);
+    </script>
+</body>
+</html>
